@@ -40,8 +40,8 @@ function cpl_display_child_pages_shortcode() {
     // --- Get sorting parameters from URL ---
     // Sanitize and set default values for sorting.
     $valid_sort_by = ['date', 'title', 'tags'];
-    $sort_by = isset($_GET['sortby']) && in_array($_GET['sortby'], $valid_sort_by) ? sanitize_key($_GET['sortby']) : 'title';
-    $sort_order = isset($_GET['sortorder']) && in_array(strtoupper($_GET['sortorder']), ['ASC', 'DESC']) ? strtoupper(sanitize_key($_GET['sortorder'])) : 'ASC';
+    $sort_by = isset($_GET['sortby']) && is_string($_GET['sortby']) && in_array($_GET['sortby'], $valid_sort_by) ? sanitize_key($_GET['sortby']) : 'title';
+    $sort_order = isset($_GET['sortorder']) && is_string($_GET['sortorder']) && in_array(strtoupper($_GET['sortorder']), ['ASC', 'DESC']) ? strtoupper(sanitize_key($_GET['sortorder'])) : 'ASC';
 
     // Start output buffering to capture all HTML.
     ob_start();
@@ -152,18 +152,18 @@ function cpl_display_child_pages_shortcode() {
         <!-- Sorting Controls -->
         <div class="cpl-sorter">
             <?php
-            $base_url = esc_url(get_permalink($parent_id));
+            $base_url = get_permalink($parent_id);
             $next_order = ($sort_order === 'ASC') ? 'desc' : 'asc';
             ?>
             <div class="cpl-sort-group">
                 <span>Sort by:</span>
-                <a href="<?php echo add_query_arg(['sortby' => 'title', 'sortorder' => $sort_order], $base_url); ?>" class="<?php echo $sort_by === 'title' ? 'cpl-active' : ''; ?>">Title</a>
-                <a href="<?php echo add_query_arg(['sortby' => 'date', 'sortorder' => $sort_order], $base_url); ?>" class="<?php echo $sort_by === 'date' ? 'cpl-active' : ''; ?>">Date</a>
-                <a href="<?php echo add_query_arg(['sortby' => 'tags', 'sortorder' => $sort_order], $base_url); ?>" class="<?php echo $sort_by === 'tags' ? 'cpl-active' : ''; ?>">Tags</a>
+                <a href="<?php echo esc_url(add_query_arg(['sortby' => 'title', 'sortorder' => $sort_order], $base_url)); ?>" class="<?php echo $sort_by === 'title' ? 'cpl-active' : ''; ?>">Title</a>
+                <a href="<?php echo esc_url(add_query_arg(['sortby' => 'date', 'sortorder' => $sort_order], $base_url)); ?>" class="<?php echo $sort_by === 'date' ? 'cpl-active' : ''; ?>">Date</a>
+                <a href="<?php echo esc_url(add_query_arg(['sortby' => 'tags', 'sortorder' => $sort_order], $base_url)); ?>" class="<?php echo $sort_by === 'tags' ? 'cpl-active' : ''; ?>">Tags</a>
             </div>
             <div class="cpl-order-group">
                 <span>Order:</span>
-                <a href="<?php echo add_query_arg(['sortby' => $sort_by, 'sortorder' => $next_order], $base_url); ?>"><?php echo $sort_order === 'ASC' ? 'Ascending &darr;' : 'Descending &uarr;'; ?></a>
+                <a href="<?php echo esc_url(add_query_arg(['sortby' => $sort_by, 'sortorder' => $next_order], $base_url)); ?>"><?php echo $sort_order === 'ASC' ? 'Ascending &darr;' : 'Descending &uarr;'; ?></a>
             </div>
         </div>
 
