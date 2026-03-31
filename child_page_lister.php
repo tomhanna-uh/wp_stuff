@@ -181,14 +181,22 @@ function cpl_display_child_pages_shortcode() {
         $child_pages_query = new WP_Query($args);
         $child_pages = $child_pages_query->get_posts();
         
+        // Pre-fetch term cache to avoid N+1 queries in loop and sorting
+        if (!empty($child_pages)) {
+            update_object_term_cache(wp_list_pluck($child_pages, 'ID'), 'page');
+        }
+
         // --- Custom sorting for tags in PHP ---
         if ($sort_by === 'tags' && !empty($child_pages)) {
-            usort($child_pages, function($a, $b) use ($sort_order) {
-                $tags_a = wp_get_post_tags($a->ID);
-                $tags_b = wp_get_post_tags($b->ID);
-                // Use the name of the first tag for comparison
-                $first_tag_a = !empty($tags_a) ? strtolower($tags_a[0]->name) : '';
-                $first_tag_b = !empty($tags_b) ? strtolower($tags_b[0]->name) : '';
+            $tag_lookup = [];
+            foreach ($child_pages as $child) {
+                $tags = get_the_tags($child->ID);
+                $tag_lookup[$child->ID] = !empty($tags) ? strtolower($tags[0]->name) : '';
+            }
+
+            usort($child_pages, function($a, $b) use ($sort_order, $tag_lookup) {
+                $first_tag_a = $tag_lookup[$a->ID] ?? '';
+                $first_tag_b = $tag_lookup[$b->ID] ?? '';
                 
                 $comparison = strcmp($first_tag_a, $first_tag_b);
                 return ($sort_order === 'ASC') ? $comparison : -$comparison;
