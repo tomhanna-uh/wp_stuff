@@ -1,0 +1,100 @@
+/* Scoped styles for the child page lister */
+.cpl-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    margin: 2em 0;
+}
+.cpl-sorter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #f7f7f7;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+.cpl-sort-group, .cpl-order-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.cpl-sorter span {
+    font-weight: 600;
+    color: #333;
+}
+.cpl-sorter a {
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #0073aa;
+    transition: all 0.2s ease-in-out;
+}
+.cpl-sorter a:hover {
+    background-color: #f0f0f0;
+    border-color: #999;
+}
+.cpl-sorter a.cpl-active {
+    background-color: #0073aa;
+    color: #fff;
+    border-color: #0073aa;
+    font-weight: bold;
+}
+.cpl-page-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+.cpl-page-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+.cpl-page-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.cpl-page-item-content {
+    padding: 1.25rem;
+}
+.cpl-page-item-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+}
+.cpl-page-item-title a {
+    text-decoration: none;
+    color: #1d2327;
+}
+.cpl-page-item-title a:hover {
+    color: #0073aa;
+}
+.cpl-meta {
+    font-size: 0.875rem;
+    color: #555;
+    padding: 0.75rem 1.25rem;
+    background-color: #f9f9f9;
+    border-top: 1px solid #e0e0e0;
+}
+.cpl-meta-date {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.cpl-meta-tags .cpl-tag {
+    display: inline-block;
+    background-color: #eef6fc;
+    color: #005a87;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-right: 0.3rem;
+    margin-bottom: 0.3rem;
+}
