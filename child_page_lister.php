@@ -24,6 +24,139 @@ function cpl_add_tags_to_pages() {
 add_action( 'init', 'cpl_add_tags_to_pages' );
 
 /**
+ * Enqueue frontend stylesheets for the plugin.
+ */
+function cpl_enqueue_styles() {
+    wp_enqueue_style(
+        'child-page-lister',
+        plugins_url( 'assets/css/child-page-lister.css', __FILE__ ),
+        array(),
+        '1.0'
+    );
+}
+add_action( 'wp_enqueue_scripts', 'cpl_enqueue_styles' );
+
+/**
+ * Fetches and sorts the child pages.
+ *
+ * @param int    $parent_id  The parent post ID.
+ * @param string $sort_by    The sorting field (date, title, tags).
+ * @param string $sort_order The sorting order (ASC, DESC).
+ * @return array Array of WP_Post objects.
+ */
+function cpl_get_child_pages( $parent_id, $sort_by, $sort_order ) {
+    $args = [
+        'post_parent'    => $parent_id,
+        'post_type'      => 'page',
+        'post_status'    => 'publish',
+        'posts_per_page' => 500, // Bound the query
+        'orderby'        => ( $sort_by === 'tags' ) ? 'none' : $sort_by,
+        'order'          => $sort_order,
+    ];
+
+    $child_pages_query = new WP_Query( $args );
+    $child_pages       = $child_pages_query->get_posts();
+
+    if ( $sort_by === 'tags' && ! empty( $child_pages ) ) {
+        // Prime the term cache for efficiency
+        $post_ids = wp_list_pluck( $child_pages, 'ID' );
+        update_object_term_cache( $post_ids, 'page' );
+
+        // Pre-fetch tags into a lookup array
+        $tag_lookup = [];
+        foreach ( $child_pages as $child ) {
+            $tags = get_the_tags( $child->ID );
+            $tag_lookup[ $child->ID ] = ( ! empty( $tags ) ) ? strtolower( $tags[0]->name ) : '';
+        }
+
+        usort( $child_pages, function ( $a, $b ) use ( $sort_order, $tag_lookup ) {
+            // Use ?? to handle potential missing keys safely
+            $first_tag_a = $tag_lookup[ $a->ID ] ?? '';
+            $first_tag_b = $tag_lookup[ $b->ID ] ?? '';
+
+            $comparison = strcmp( $first_tag_a, $first_tag_b );
+            return ( $sort_order === 'ASC' ) ? $comparison : -$comparison;
+        } );
+    }
+
+    return $child_pages;
+}
+
+/**
+ * Renders the sorting controls HTML.
+ *
+ * @param int    $parent_id  The parent post ID.
+ * @param string $sort_by    The current sorting field.
+ * @param string $sort_order The current sorting order.
+ */
+function cpl_render_sorting_controls( $parent_id, $sort_by, $sort_order ) {
+    $base_url   = get_permalink( $parent_id );
+    $next_order = ( $sort_order === 'ASC' ) ? 'desc' : 'asc';
+    ?>
+    <div class="cpl-sorter">
+        <div class="cpl-sort-group">
+            <span><?php esc_html_e( 'Sort by:', 'child-page-lister' ); ?></span>
+            <a href="<?php echo esc_url( add_query_arg( [ 'sortby' => 'title', 'sortorder' => $sort_order ], $base_url ) ); ?>" class="<?php echo $sort_by === 'title' ? 'cpl-active' : ''; ?>"><?php esc_html_e( 'Title', 'child-page-lister' ); ?></a>
+            <a href="<?php echo esc_url( add_query_arg( [ 'sortby' => 'date', 'sortorder' => $sort_order ], $base_url ) ); ?>" class="<?php echo $sort_by === 'date' ? 'cpl-active' : ''; ?>"><?php esc_html_e( 'Date', 'child-page-lister' ); ?></a>
+            <a href="<?php echo esc_url( add_query_arg( [ 'sortby' => 'tags', 'sortorder' => $sort_order ], $base_url ) ); ?>" class="<?php echo $sort_by === 'tags' ? 'cpl-active' : ''; ?>"><?php esc_html_e( 'Tags', 'child-page-lister' ); ?></a>
+        </div>
+        <div class="cpl-order-group">
+            <span><?php esc_html_e( 'Order:', 'child-page-lister' ); ?></span>
+            <a href="<?php echo esc_url( add_query_arg( [ 'sortby' => $sort_by, 'sortorder' => $next_order ], $base_url ) ); ?>">
+                <?php echo $sort_order === 'ASC' ? esc_html__( 'Ascending', 'child-page-lister' ) . ' &darr;' : esc_html__( 'Descending', 'child-page-lister' ) . ' &uarr;'; ?>
+            </a>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Renders the list of child pages HTML.
+ *
+ * @param array $child_pages Array of WP_Post objects.
+ */
+function cpl_render_child_pages_list( $child_pages ) {
+    if ( empty( $child_pages ) ) {
+        echo '<p>' . esc_html__( 'No child pages found for this page.', 'child-page-lister' ) . '</p>';
+        return;
+    }
+
+    echo '<ul class="cpl-page-list">';
+    foreach ( $child_pages as $child ) {
+        $tags = get_the_tags( $child->ID );
+        ?>
+        <li class="cpl-page-item">
+            <div class="cpl-page-item-content">
+                <h3 class="cpl-page-item-title">
+                    <a href="<?php echo esc_url( get_permalink( $child->ID ) ); ?>">
+                        <?php echo esc_html( get_the_title( $child->ID ) ); ?>
+                    </a>
+                </h3>
+            </div>
+            <div class="cpl-meta">
+                <span class="cpl-meta-date">
+                    <?php
+                    /* translators: %s: Published date */
+                    printf( esc_html__( 'Published: %s', 'child-page-lister' ), get_the_date( 'F j, Y', $child->ID ) );
+                    ?>
+                </span>
+                <div class="cpl-meta-tags">
+                    <?php if ( $tags ) : ?>
+                        <?php foreach ( $tags as $tag ) : ?>
+                            <span class="cpl-tag"><?php echo esc_html( $tag->name ); ?></span>
+                        <?php endforeach; ?>
+                    <?php else : ?>
+                        <span class="cpl-tag"><?php esc_html_e( 'No Tags', 'child-page-lister' ); ?></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </li>
+        <?php
+    }
+    echo '</ul>';
+}
+
+/**
  * The main function to display the list of child pages via shortcode.
  *
  * @return string The HTML output for the child page list and sorter.
@@ -43,131 +176,15 @@ function cpl_display_child_pages_shortcode() {
     $sort_by = isset($_GET['sortby']) && is_string($_GET['sortby']) && in_array($_GET['sortby'], $valid_sort_by) ? sanitize_key($_GET['sortby']) : 'title';
     $sort_order = isset($_GET['sortorder']) && is_string($_GET['sortorder']) && in_array(strtoupper($_GET['sortorder']), ['ASC', 'DESC']) ? strtoupper(sanitize_key($_GET['sortorder'])) : 'ASC';
 
+    $child_pages = cpl_get_child_pages( $parent_id, $sort_by, $sort_order );
+
     // Start output buffering to capture all HTML.
     ob_start();
     ?>
-    <style>
-        /* Scoped styles for the child page lister */
-        .cpl-container {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-            margin: 2em 0;
-        }
-        .cpl-sorter {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 1rem;
-            background-color: #f7f7f7;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-        .cpl-sort-group, .cpl-order-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .cpl-sorter span {
-            font-weight: 600;
-            color: #333;
-        }
-        .cpl-sorter a {
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #fff;
-            color: #0073aa;
-            transition: all 0.2s ease-in-out;
-        }
-        .cpl-sorter a:hover {
-            background-color: #f0f0f0;
-            border-color: #999;
-        }
-        .cpl-sorter a.cpl-active {
-            background-color: #0073aa;
-            color: #fff;
-            border-color: #0073aa;
-            font-weight: bold;
-        }
-        .cpl-page-list {
-            list-style: none;
-            padding: 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
-        .cpl-page-item {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background-color: #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            overflow: hidden;
-        }
-        .cpl-page-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .cpl-page-item-content {
-            padding: 1.25rem;
-        }
-        .cpl-page-item-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin: 0 0 0.5rem 0;
-        }
-        .cpl-page-item-title a {
-            text-decoration: none;
-            color: #1d2327;
-        }
-        .cpl-page-item-title a:hover {
-            color: #0073aa;
-        }
-        .cpl-meta {
-            font-size: 0.875rem;
-            color: #555;
-            padding: 0.75rem 1.25rem;
-            background-color: #f9f9f9;
-            border-top: 1px solid #e0e0e0;
-        }
-        .cpl-meta-date {
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-        .cpl-meta-tags .cpl-tag {
-            display: inline-block;
-            background-color: #eef6fc;
-            color: #005a87;
-            padding: 0.25rem 0.6rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-right: 0.3rem;
-            margin-bottom: 0.3rem;
-        }
-    </style>
     <div class="cpl-container">
-        <!-- Sorting Controls -->
-        <div class="cpl-sorter">
-            <?php
-            $base_url = get_permalink($parent_id);
-            $next_order = ($sort_order === 'ASC') ? 'desc' : 'asc';
-            ?>
-            <div class="cpl-sort-group">
-                <span>Sort by:</span>
-                <a href="<?php echo esc_url(add_query_arg(['sortby' => 'title', 'sortorder' => $sort_order], $base_url)); ?>" class="<?php echo $sort_by === 'title' ? 'cpl-active' : ''; ?>">Title</a>
-                <a href="<?php echo esc_url(add_query_arg(['sortby' => 'date', 'sortorder' => $sort_order], $base_url)); ?>" class="<?php echo $sort_by === 'date' ? 'cpl-active' : ''; ?>">Date</a>
-                <a href="<?php echo esc_url(add_query_arg(['sortby' => 'tags', 'sortorder' => $sort_order], $base_url)); ?>" class="<?php echo $sort_by === 'tags' ? 'cpl-active' : ''; ?>">Tags</a>
-            </div>
-            <div class="cpl-order-group">
-                <span>Order:</span>
-                <a href="<?php echo esc_url(add_query_arg(['sortby' => $sort_by, 'sortorder' => $next_order], $base_url)); ?>"><?php echo $sort_order === 'ASC' ? 'Ascending &darr;' : 'Descending &uarr;'; ?></a>
-            </div>
-        </div>
-
         <?php
+        cpl_render_sorting_controls( $parent_id, $sort_by, $sort_order );
+        cpl_render_child_pages_list( $child_pages );
         // --- WP_Query to get child pages ---
         $args = [
             'post_parent'    => $parent_id,
@@ -181,6 +198,11 @@ function cpl_display_child_pages_shortcode() {
         $child_pages_query = new WP_Query($args);
         $child_pages = $child_pages_query->get_posts();
         
+        // Pre-fetch term cache to avoid N+1 queries in loop and sorting
+        if (!empty($child_pages)) {
+            update_object_term_cache(wp_list_pluck($child_pages, 'ID'), 'page');
+        }
+
         // --- Custom sorting for tags in PHP ---
         if ($sort_by === 'tags' && !empty($child_pages)) {
             // Prime term cache to avoid N+1 queries
@@ -190,6 +212,9 @@ function cpl_display_child_pages_shortcode() {
             $tag_lookup = [];
             foreach ($child_pages as $child) {
                 $tags = wp_get_post_tags($child->ID);
+            $tag_lookup = [];
+            foreach ($child_pages as $child) {
+                $tags = get_the_tags($child->ID);
                 $tag_lookup[$child->ID] = !empty($tags) ? strtolower($tags[0]->name) : '';
             }
 
