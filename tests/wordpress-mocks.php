@@ -1,4 +1,10 @@
 <?php
+// Mocking WP functions
+
+if (!class_exists('WP_Post')) {
+    class WP_Post {
+        public $ID;
+        public function __construct($id) {
 // tests/wordpress-mocks.php
 
 function register_taxonomy_for_object_type( $taxonomy, $object_type ) {}
@@ -32,6 +38,19 @@ class WP_Post {
     }
 }
 
+if (!class_exists('WP_Query')) {
+    class WP_Query {
+        public $args;
+        public function __construct($args) {
+            $this->args = $args;
+        }
+        public function get_posts() {
+            global $mock_wp_query_posts;
+            if (isset($mock_wp_query_posts)) {
+                return $mock_wp_query_posts;
+            }
+            return [];
+        }
 // Global state for mocks
 global $mock_data;
 function cpl_reset_mocks() {
@@ -66,6 +85,13 @@ if (!function_exists('sanitize_key')) {
 }
 
 if (!function_exists('get_permalink')) {
+    function get_permalink($id) {
+        return 'http://example.com/?p=' . $id;
+    }
+}
+
+if (!function_exists('esc_url')) {
+    function esc_url($url) {
     function get_permalink($id = 0, $leavename = false) {
         global $mock_data;
         if (isset($mock_data['get_permalink_callable']) && is_callable($mock_data['get_permalink_callable'])) {
@@ -87,6 +113,16 @@ if (!function_exists('add_query_arg')) {
     }
 }
 
+if (!function_exists('add_query_arg')) {
+    function add_query_arg($args, $url) {
+        $query = http_build_query($args);
+        return $url . '&' . $query;
+    }
+}
+
+if (!function_exists('sanitize_key')) {
+    function sanitize_key($key) {
+        return strtolower(preg_replace('/[^a-z0-9_\-]/i', '', $key));
 if (!function_exists('esc_url')) {
     function esc_url($url, $protocols = null, $_context = 'display') {
         return $url;
@@ -104,6 +140,7 @@ class WP_Query {
 }
 
 if (!function_exists('wp_get_post_tags')) {
+    function wp_get_post_tags($id) {
     function wp_get_post_tags($post_id = 0, $args = []) {
         global $mock_data;
         if (isset($mock_data['wp_get_post_tags'][$post_id])) {
@@ -115,11 +152,27 @@ if (!function_exists('wp_get_post_tags')) {
 
 if (!function_exists('setup_postdata')) {
     function setup_postdata($post) {
+        global $post;
+        $post = $post;
         // Mock
     }
 }
 
 if (!function_exists('get_the_tags')) {
+    function get_the_tags($id) {
+        return false;
+    }
+}
+
+if (!function_exists('esc_html')) {
+    function esc_html($text) {
+        return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('get_the_title')) {
+    function get_the_title($id) {
+        return 'Post ' . $id;
     function get_the_tags($id = 0) {
         global $mock_data;
         if (isset($mock_data['get_the_tags_callable']) && is_callable($mock_data['get_the_tags_callable'])) {
@@ -146,6 +199,8 @@ if (!function_exists('esc_html')) {
 }
 
 if (!function_exists('get_the_date')) {
+    function get_the_date($format, $id) {
+        return 'January 1, 2023';
     function get_the_date($format = '', $post = null) {
         global $mock_data;
         if (isset($mock_data['get_the_date_callable']) && is_callable($mock_data['get_the_date_callable'])) {
@@ -157,6 +212,35 @@ if (!function_exists('get_the_date')) {
 
 if (!function_exists('wp_reset_postdata')) {
     function wp_reset_postdata() {
+        global $post;
+        $post = null;
+    }
+}
+
+if (!function_exists('cpl_reset_mocks')) {
+    function cpl_reset_mocks() {
+        global $mock_wp_query_posts, $post, $_GET;
+        $mock_wp_query_posts = null;
+        $post = null;
+        $_GET = [];
+    }
+}
+
+if (!function_exists('register_taxonomy_for_object_type')) {
+    function register_taxonomy_for_object_type($taxonomy, $object_type) {
+        return true;
+    }
+}
+
+if (!function_exists('add_action')) {
+    function add_action($tag, $function_to_add, $priority = 10, $accepted_args = 1) {
+        return true;
+    }
+}
+
+if (!function_exists('add_shortcode')) {
+    function add_shortcode($tag, $callback) {
+        return true;
         // Mock
     }
 }
