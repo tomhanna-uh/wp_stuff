@@ -205,6 +205,13 @@ function cpl_display_child_pages_shortcode() {
 
         // --- Custom sorting for tags in PHP ---
         if ($sort_by === 'tags' && !empty($child_pages)) {
+            // Prime term cache to avoid N+1 queries
+            update_object_term_cache( wp_list_pluck( $child_pages, 'ID' ), 'page' );
+
+            // Pre-fetch tags to avoid O(N log N) lookups in usort
+            $tag_lookup = [];
+            foreach ($child_pages as $child) {
+                $tags = wp_get_post_tags($child->ID);
             $tag_lookup = [];
             foreach ($child_pages as $child) {
                 $tags = get_the_tags($child->ID);
@@ -212,6 +219,7 @@ function cpl_display_child_pages_shortcode() {
             }
 
             usort($child_pages, function($a, $b) use ($sort_order, $tag_lookup) {
+                // Use the pre-fetched name of the first tag for comparison
                 $first_tag_a = $tag_lookup[$a->ID] ?? '';
                 $first_tag_b = $tag_lookup[$b->ID] ?? '';
                 
