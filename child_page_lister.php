@@ -211,9 +211,6 @@ function cpl_display_child_pages_shortcode() {
             // Pre-fetch tags to avoid O(N log N) lookups in usort
             $tag_lookup = [];
             foreach ($child_pages as $child) {
-                $tags = wp_get_post_tags($child->ID);
-            $tag_lookup = [];
-            foreach ($child_pages as $child) {
                 $tags = get_the_tags($child->ID);
                 $tag_lookup[$child->ID] = !empty($tags) ? strtolower($tags[0]->name) : '';
             }
